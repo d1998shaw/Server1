@@ -58,18 +58,22 @@ let arr=shops;
                             let sort=req.query.sort;
                           let arr=purchases;
                             if(shop){
-                            let selShop=shops.find(n=>n.name===shop);
+                             let id=+shop.slice(2);
+                             console.log("new id",id);
+                            let selShop=shops.find(n=>n.shopid===id);
                              console.log(selShop);
-                               arr=arr.filter((m)=>m.shopid===selShop.shopid);
-                        
+                              arr=arr.filter((m)=>m.shopid===selShop.shopid);
                             }
                             if(product){
-                                let selProd=products.find(n=>n.productname===product);
-                                arr=arr.filter((m)=>selProd.productid===m.productid);
-                                
-                                
-                        
-                            }
+                              let productIds = product
+                              .split(',')
+                              .map(product => product.replace('pr', ''))
+                              .map(product => parseInt(product));
+                          
+                            arr = arr.filter(purchase =>
+                              productIds.includes(purchase.productid)
+                            );
+                          }
                             if(sort==="QtyAsc"){
                              arr=arr.sort((a,b)=>a.quantity-b.quantity);
     
@@ -116,14 +120,37 @@ let arr=shops;
 
                                                 app.get("/totalPurchase/shop/:sid",function(req,res){
                                                     let id=+req.params.sid;
-                                                    
                                                     let arr=purchases.filter(n=>n.shopid===id);
                                                     const countById = arr.reduce((countMap, obj) => {
                                                         const { productid } = obj;
                                                         countMap[productid] = (countMap[productid] || 0) + 1;
                                                         return countMap;
                                                       }, {});
-                                                      res.send(countById);
+                                                      let arrWithCount = arr.map((obj) => {
+                                                        const { productid } = obj;
+                                                        return {
+                                                          ...obj,
+                                                          count: countById[productid],
+                                                        };
+                                                      });
+                                                      arrWithCount = arrWithCount.reduce((acc, curr) => {
+                                                        const {purchaseid,shopid, productid, quantity, count,price } = curr;
+                                                        if (!acc[productid]) {
+                                                            acc[productid] = {
+                                                               purchaseid:purchaseid,
+                                                               shopid:shopid,
+                                                               productid:productid,
+                                                               quantity: quantity,
+                                                               price: quantity * price,
+                                                               count:count
+                                                            };
+                                                        } else {
+                                                            acc[productid].quantity += quantity;
+                                                            acc[productid].price += quantity * price;
+                                                        }
+                                                        return acc;
+                                                    }, []);  
+                                                     res.send(arrWithCount);
                                                         });
                                                 app.get("/total/product/:pid",function(req,res){
                                                             let id=+req.params.pid;
@@ -133,6 +160,30 @@ let arr=shops;
                                                                 countMap[shopid] = (countMap[shopid] || 0) + 1;
                                                                 return countMap;
                                                               }, {});
-                                                              res.send(countById);
-                                                                        });                        
+                                                              let arrWithCount = arr.map((obj) => {
+                                                                const { shopid } = obj;
+                                                                return {
+                                                                  ...obj, 
+                                                                  count: countById[shopid], 
+                                                                };
+                                                              });
+                                                              arrWithCount = arrWithCount.reduce((acc, curr) => {
+                                                                const {purchaseid,shopid, productid, quantity, count,price } = curr;
+                                                                if (!acc[shopid]) {
+                                                                    acc[shopid] = {
+                                                                       purchaseid:purchaseid,
+                                                                       shopid:shopid,
+                                                                       productid:productid,
+                                                                       quantity: quantity,
+                                                                       price: quantity * price,
+                                                                       count:count
+                                                                    };
+
+                                                                    acc[shopid].quantity += quantity;
+                                                                    acc[shopid].price += quantity * price;
+                                                                }
+                                                                return acc;
+                                                            }, []);  
+                                                             res.send(arrWithCount);
+                                                                                     });                        
 app.listen(port,()=>console.log(`Node app listening on port ${port}!`));
